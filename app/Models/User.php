@@ -6,7 +6,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use App\Models\Post; // <-- This is correctly imported
+use Illuminate\Support\Str; // Import Str facade
 
 class User extends Authenticatable
 {
@@ -28,18 +28,34 @@ class User extends Authenticatable
         'post',
         'police_station',
         'district',
+        'profile_image_path', // <-- Add this
     ];
 
     /**
      * Define the one-to-many relationship with the Post model.
-     * This is the method that fixes the "User::posts() undefined" error.
      */
     public function posts()
     {
-        // One User can have many Posts
         return $this->hasMany(Post::class);
     }
-    
+
+    /**
+     * Get the user's initials.
+     *
+     * @return string
+     */
+    public function getInitialsAttribute(): string
+    {
+        $nameParts = explode(' ', trim($this->name));
+        $firstName = array_shift($nameParts);
+        $lastName = array_pop($nameParts);
+
+        $initials = (isset($firstName[0]) ? strtoupper($firstName[0]) : '') .
+                    (isset($lastName[0]) ? strtoupper($lastName[0]) : '');
+
+        return $initials ?: strtoupper(substr($this->email, 0, 1)); // Fallback to email initial
+    }
+
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -60,6 +76,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'dob' => 'date', // Cast dob to date object
         ];
     }
 }

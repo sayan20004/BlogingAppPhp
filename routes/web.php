@@ -63,3 +63,6 @@ Route::middleware(['auth'])->group(function () {
     // Delete Logic
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
 });
+// --- Profile Routes (Require Login) ---
+Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show');
+Route::put('/profile', [App\Http\Controllers\ProfileController::class, 'update'])->name('profile.update');
