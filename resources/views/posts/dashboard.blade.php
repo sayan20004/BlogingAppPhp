@@ -60,6 +60,9 @@
         @if (session('success'))
             <div class="bg-green-600/20 border border-green-500 text-green-300 p-4 rounded-xl mb-6">{{ session('success') }}</div>
         @endif
+        @if (session('error'))
+            <div class="bg-red-600/20 border border-red-500 text-red-300 p-4 rounded-xl mb-6">{{ session('error') }}</div>
+        @endif
 
         {{-- Stats Bar --}}
         <div class="bg-gray-800 p-4 md:p-6 rounded-xl shadow-lg border border-gray-700 mb-8 flex flex-col sm:flex-row justify-start items-center flex-wrap gap-4"> {{-- Added gap --}}
@@ -81,50 +84,116 @@
         </div>
 
         <h2 class="text-3xl font-bold mb-4 text-blue-300">Your Posts Queue</h2>
-        <div class="bg-gray-800 rounded-xl overflow-x-auto shadow-lg border border-gray-700">
-            <table class="min-w-full divide-y divide-gray-700">
-                <thead class="bg-gray-700">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Title</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Created</th>
-                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-700">
-                    @forelse ($posts as $post)
-                        <tr class="hover:bg-gray-700 transition duration-150">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
-                                {{ Str::limit($post->title, 50) }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                                    @if($post->status == 'published') bg-green-200 text-green-800 @else bg-yellow-200 text-yellow-800 @endif">
-                                    {{ ucfirst($post->status) }}
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                                {{ $post->created_at->format('M d, Y') }}
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                                <a href="{{ route('posts.edit', $post) }}" class="text-blue-400 hover:text-blue-300 transition duration-150">Edit</a>
 
-                                <form action="{{ route('posts.destroy', $post) }}" method="POST" class="inline" onsubmit="return confirm('Are you sure you want to delete this post?');">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-red-400 hover:text-red-300 transition duration-150">Delete</button>
-                                </form>
-                            </td>
-                        </tr>
-                    @empty
+        <form action="{{ route('posts.bulkAction') }}" method="POST" onsubmit="return handleBulkSubmit(event)">
+            @csrf
+            
+            <div class="flex justify-end mb-4 space-x-2">
+                <select name="action" id="bulk-action-select" class="bg-gray-700 text-gray-200 border border-gray-600 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">Bulk Actions...</option>
+                    <option value="update_published">Set Status to Published</option>
+                    <option value="update_draft">Set Status to Draft</option>
+                    <option value="delete">Delete Selected</option>
+                </select>
+                <button type="submit" class="bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition duration-150">
+                    Apply
+                </button>
+            </div>
+
+            <div class="bg-gray-800 rounded-xl overflow-x-auto shadow-lg border border-gray-700">
+                <table class="min-w-full divide-y divide-gray-700">
+                    <thead class="bg-gray-700">
                         <tr>
-                            <td colspan="4" class="px-6 py-4 text-center text-gray-400">You haven't created any posts yet. Start with a new one!</td>
+                            <th class="px-6 py-3 w-4">
+                                <input type="checkbox" id="select-all" class="h-4 w-4 text-blue-600 bg-gray-800 border-gray-600 rounded focus:ring-blue-500">
+                            </th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Title</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Created</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
                         </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                    </thead>
+                    <tbody class="divide-y divide-gray-700">
+                        @forelse ($posts as $post)
+                            <tr class="hover:bg-gray-700 transition duration-150">
+                                <td class="px-6 py-4">
+                                    <input type="checkbox" name="post_ids[]" value="{{ $post->id }}" class="post-checkbox h-4 w-4 text-blue-600 bg-gray-900 border-gray-600 rounded focus:ring-blue-500">
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
+                                    {{ Str::limit($post->title, 50) }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                                        @if($post->status == 'published') bg-green-200 text-green-800 @else bg-yellow-200 text-yellow-800 @endif">
+                                        {{ ucfirst($post->status) }}
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                                    {{ $post->created_at->format('M d, Y') }}
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                                    <a href="{{ route('posts.edit', $post) }}" class="text-blue-400 hover:text-blue-300 transition duration-150">Edit</a>
+                                    
+                                    <!-- <a href="{{ route('posts.destroy', $post) }}" 
+                                       class="text-red-400 hover:text-red-300 transition duration-150"
+                                       onclick="event.preventDefault(); 
+                                                if(confirm('Are you sure you want to delete this post?')) {
+                                                    document.getElementById('delete-form-{{ $post->id }}').submit();
+                                                }">
+                                        Delete
+                                    </a> -->
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="px-6 py-4 text-center text-gray-400">You haven't created any posts yet. Start with a new one!</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </form> @foreach ($posts as $post)
+            <form id="delete-form-{{ $post->id }}" action="{{ route('posts.destroy', $post) }}" method="POST" style="display: none;">
+                @csrf
+                @method('DELETE')
+            </form>
+        @endforeach
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const selectAllCheckbox = document.getElementById('select-all');
+            const postCheckboxes = document.querySelectorAll('.post-checkbox');
+
+            // Logic for "Select All" checkbox
+            selectAllCheckbox.addEventListener('click', function () {
+                postCheckboxes.forEach(function (checkbox) {
+                    checkbox.checked = selectAllCheckbox.checked;
+                });
+            });
+        });
+
+        // JavaScript for handling bulk submit confirmation
+        function handleBulkSubmit(event) {
+            const action = document.getElementById('bulk-action-select').value;
+            if (action === 'delete') {
+                if (!confirm('Are you sure you want to delete all selected posts? This action cannot be undone.')) {
+                    event.preventDefault();
+                    return false;
+                }
+            } else if (action.startsWith('update_')) {
+                 if (!confirm('Are you sure you want to update the status for all selected posts?')) {
+                    event.preventDefault();
+                    return false;
+                }
+            } else if (action === '') {
+                alert('Please select a bulk action to perform.');
+                event.preventDefault();
+                return false;
+            }
+            return true;
+        }
+    </script>
 
 </body>
 </html>

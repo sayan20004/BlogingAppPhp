@@ -171,9 +171,68 @@ class PostController extends Controller
         if ($post->image_path) {
              Storage::disk('public')->delete($post->image_path); 
         }
+        
+        // ** ADDED VIDEO FILE DELETION **
+        if ($post->video_path) {
+             Storage::disk('public')->delete($post->video_path); 
+        }
 
         $post->delete();
         
         return redirect()->route('dashboard')->with('success', 'Blog post deleted successfully!');
+    }
+
+    /**
+     * Handle all bulk actions (edit, delete).
+     */
+    public function bulkAction(Request $request)
+    {
+        $request->validate([
+            'action' => 'required|string|in:delete,update_published,update_draft',
+            'post_ids' => 'required|array',
+            'post_ids.*' => 'integer|exists:posts,id',
+        ]);
+
+        $action = $request->input('action');
+        $postIds = $request->input('post_ids');
+
+        // Get only the posts that belong to the authenticated user
+        $posts = Post::where('user_id', Auth::id())
+                     ->whereIn('id', $postIds)
+                     ->get();
+
+        if ($posts->isEmpty()) {
+            return redirect()->route('dashboard')->with('error', 'No valid posts selected.');
+        }
+
+        $message = '';
+
+        switch ($action) {
+            case 'delete':
+                foreach ($posts as $post) {
+                    if ($post->image_path) {
+                        Storage::disk('public')->delete($post->image_path); 
+                    }
+                    if ($post->video_path) {
+                        Storage::disk('public')->delete($post->video_path);
+                    }
+                }
+                // Delete all posts from the DB at once
+                Post::whereIn('id', $posts->pluck('id'))->delete();
+                $message = 'Selected posts deleted successfully!';
+                break;
+
+            case 'update_published':
+                Post::whereIn('id', $posts->pluck('id'))->update(['status' => 'published']);
+                $message = 'Selected posts have been published!';
+                break;
+
+            case 'update_draft':
+                Post::whereIn('id', $posts->pluck('id'))->update(['status' => 'draft']);
+                $message = 'Selected posts have been moved to drafts!';
+                break;
+        }
+        
+        return redirect()->route('dashboard')->with('success', $message);
     }
 }

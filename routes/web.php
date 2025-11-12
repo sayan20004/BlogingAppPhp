@@ -62,6 +62,9 @@ Route::middleware(['auth'])->group(function () {
 
     // Delete Logic
     Route::delete('/posts/{post}', [PostController::class, 'destroy'])->name('posts.destroy');
+
+    // *** NEW ROUTE FOR ALL BULK ACTIONS (Replaces bulkDestroy) ***
+    Route::post('/posts/bulk-action', [PostController::class, 'bulkAction'])->name('posts.bulkAction');
 });
 // --- Profile Routes (Require Login) ---
 Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show');
